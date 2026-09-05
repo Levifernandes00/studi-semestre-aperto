@@ -593,11 +593,14 @@ export function buildFisica(): UnitaContent[] {
           formule: ['V = IR', 'P = I²R', 'Req,serie = R₁+R₂', 'due R in parallelo → R/2'],
           esempio: 'Due resistenze uguali in parallelo equivalgono a R/2. Un filo percorso da I si scalda (Joule).',
           figureIds: ['fis-6-circuito'],
+          attenzione:
+            'Serie: stessa I, tensioni si sommano. Parallelo: stessa V, correnti si sommano. Nei quiz “due resistenze”: controlla sempre se sono in serie o in parallelo prima di calcolare Req.',
           approfondisci: [
             'Se vuoi capire anche la differenza tra resistenza e resistività.',
             'Se vuoi capire anche perché in serie scorre la stessa I e in parallelo si divide.',
             'Se vuoi capire anche le forme equivalenti della potenza: P = VI = V²/R = I²R.',
             'Se vuoi capire anche lo schema del circuito elementare V–R.',
+            'Analogia idraulica (utile in simulazioni): ΔP ~ V, portata ~ I, resistenza idraulica ~ R.',
           ],
         },
         {

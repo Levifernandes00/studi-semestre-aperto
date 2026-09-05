@@ -1,4 +1,4 @@
-import type { UnitaContent } from '../../types'
+import type { Question, UnitaContent } from '../../types'
 
 type PackExtras = Pick<UnitaContent, 'figure' | 'video' | 'riferimenti'>
 
@@ -9,6 +9,7 @@ export function pack(
   diagnostico: UnitaContent['diagnostico'],
   esercizi: UnitaContent['esercizi'],
   extras?: PackExtras,
+  verifica: Question[] = [],
 ): UnitaContent {
   return {
     unitaId,
@@ -16,6 +17,7 @@ export function pack(
     perCapireMeglio,
     diagnostico,
     esercizi,
+    verifica,
     ...extras,
   }
 }

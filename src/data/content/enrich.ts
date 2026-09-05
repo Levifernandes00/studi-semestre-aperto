@@ -1,6 +1,7 @@
 import type { TheoryRef, TheoryVideo, UnitaContent } from '../../types'
 import { videosFor } from '../videos'
 import { getUnita, materiaLabel } from '../unita'
+import { mergeQuizBanks } from './banks'
 
 function defaultRiferimenti(unitaId: string): TheoryRef[] {
   const u = getUnita(unitaId)
@@ -23,9 +24,10 @@ function defaultRiferimenti(unitaId: string): TheoryRef[] {
   return refs
 }
 
-/** Completa video/riferimenti se mancanti nel pack dell’unità */
+/** Completa video/riferimenti e banche quiz se mancanti nel pack dell’unità */
 export function enrichContent(c: UnitaContent): UnitaContent {
   const video: TheoryVideo[] = c.video?.length ? c.video : videosFor(c.unitaId)
   const riferimenti = c.riferimenti?.length ? c.riferimenti : defaultRiferimenti(c.unitaId)
-  return { ...c, video, riferimenti }
+  const withBanks = mergeQuizBanks({ ...c, verifica: c.verifica ?? [] })
+  return { ...withBanks, video, riferimenti }
 }

@@ -48,8 +48,8 @@ export function UnitaPage() {
 
   const verificaQs = useMemo(() => {
     if (!content) return []
-    const pool = [...content.esercizi, ...content.diagnostico]
-    return pickQuestions(pool, 5, [])
+    const pool = content.verifica?.length ? content.verifica : content.esercizi
+    return pickQuestions(pool, 8, [])
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [content, quizKey])
 
@@ -315,7 +315,10 @@ export function UnitaPage() {
 
       {tab === 'verifica' && (
         <div>
-          <p className="muted">5 domande diverse: aggiorna il codice triage.</p>
+          <p className="muted">
+            8 domande dedicate (più difficili, stessi argomenti — non ripete triage né esercizi).
+            Aggiorna il codice.
+          </p>
           <QuizPlayer
             key={`v-${quizKey}`}
             title="Verifica"

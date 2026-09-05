@@ -46,6 +46,23 @@ export function resetQCounter() {
   qCounter = 0
 }
 
+/** Pesca un foglio d’esame: N multipla + M completamento, mescolate. */
+export function pickExamPaper(
+  pool: Question[],
+  multiplaN: number,
+  completamentoN: number,
+  excludeIds: string[] = [],
+): Question[] {
+  const avail = pool.filter((q) => !excludeIds.includes(q.id))
+  const mcPool = avail.filter((q) => q.type === 'multipla').sort(() => Math.random() - 0.5)
+  const fillPool = avail.filter((q) => q.type === 'completamento').sort(() => Math.random() - 0.5)
+  const picked = [
+    ...mcPool.slice(0, Math.min(multiplaN, mcPool.length)),
+    ...fillPool.slice(0, Math.min(completamentoN, fillPool.length)),
+  ]
+  return picked.sort(() => Math.random() - 0.5)
+}
+
 export function isAnswerCorrect(q: Question, userAnswer: string | number): boolean {
   if (q.type === 'multipla') {
     return Number(userAnswer) === q.answer

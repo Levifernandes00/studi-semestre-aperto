@@ -44,9 +44,9 @@ export function QuizPlayer({
           {score}/{questions.length}
         </p>
         <p className="muted">
-          {score === 5
+          {score === questions.length
             ? 'Perfetto — codice verde.'
-            : score >= 3
+            : score / questions.length >= 0.55
               ? 'Quasi — codice giallo.'
               : 'Da riprendere — codice rosso.'}
         </p>

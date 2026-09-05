@@ -554,7 +554,8 @@ export function buildBiologia(): UnitaContent[] {
           title: 'GPCR e tirosin-chinasi',
           body: `I GPCR attivano proteine G trimeriche: lo scambio GDP/GTP sulla subunità α (e a volte βγ) regola effettori come adenilato ciclasi e fosfolipasi C (IP3/DAG → Ca²⁺ dal RE). Le piccole GTPasi (Ras) sono accese da GEF e spente da GAP che accelerano l’idrolisi del GTP. I recettori tirosin-chinasici (RTK) tipicamente dimerizzano al legame del ligando, si autofosforilano e reclutano adattatori (Grb2-Sos): via classica Ras–Raf–MEK–ERK (MAPK) e vie PI3K–Akt. Queste cascate controllano proliferazione, sopravvivenza e differenziamento; errori di regolazione favoriscono tumori e altre patologie. Capire GEF vs GAP e dimerizzazione RTK è essenziale per interpretare oncogeni e terapie mirate (TKI, anticorpi anti-EGFR/HER2). Schema operativo: GPCR → G trimeriche → effettore; RTK → dimero → fosfotirosine → adattatori → Ras/MAPK o PI3K. GEF “on”, GAP “off” per Ras è la regola d’oro per non invertire i regolatori. Ripassa anche le distinzioni più frequenti d’esame e collega il concetto agli altri capitoli della stessa unità per fissare una rete mentale coerente.`,
           esempio: 'Fattore di crescita → RTK → Ras-GTP → cascata MAPK → trascrizione di geni mitogenici.',
-          attenzione: 'GEF attiva Ras (GTP); GAP accelera idrolisi GTP → off.',
+          attenzione:
+            'GEF attiva Ras (GTP); GAP accelera idrolisi GTP → off. Proteina G attiva quando α-GTP (non GDP); tipici secondi messaggeri: cAMP, IP3/DAG, Ca²⁺.',
           approfondisci: [
             'Gs stimola adenilato ciclasi; Gi la inibisce; Gq attiva PLC.',
             'Ras oncogenico spesso perde sensibilità a GAP → GTP “bloccato”.',

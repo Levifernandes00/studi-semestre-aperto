@@ -838,7 +838,7 @@ p {
 
 .session-row {
   display: grid;
-  grid-template-columns: 1fr auto auto;
+  grid-template-columns: 1fr auto auto auto;
   gap: 0.75rem;
   align-items: center;
 }
@@ -848,6 +848,28 @@ p {
     grid-template-columns: 1fr;
     gap: 0.35rem;
   }
+}
+
+.cal-section-title {
+  margin: 1rem 0 0.35rem;
+  font-size: 0.95rem;
+  color: var(--teal-ink);
+}
+
+.sessions-done {
+  opacity: 0.95;
+}
+
+.session-hint {
+  margin: 0.25rem 0 0 1.6rem;
+}
+
+.reopen-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .session-check {

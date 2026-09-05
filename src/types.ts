@@ -82,6 +82,8 @@ export interface UnitaContent {
   perCapireMeglio: PerCapireMeglio
   diagnostico: Question[]
   esercizi: Question[]
+  /** Pool dedicato verifica (varianti più dure); in UI se ne pescano 8 */
+  verifica: Question[]
   figure?: TheoryFigure[]
   video?: TheoryVideo[]
   riferimenti?: TheoryRef[]
@@ -109,11 +111,25 @@ export interface AppProgress {
   includeBasi: boolean
   /** Chiavi task completate: `${unitaId}::${kind}` (accetta anche id sessione legacy) */
   completedPlanItems: string[]
+  /** Quando è stato spuntato (ISO) — per undo settimanale e ripasso spaced */
+  planCompletedAt?: Record<string, string>
+  /** Task che l’utente ha rimesso in piano anche se il syllabus li avrebbe nascosti */
+  forcedPlanItems?: string[]
   /** Ore realmente studiate per taskKey */
   planHoursActual?: Record<string, number>
   /** Ore obiettivo a settimana (default 28) */
   weeklyHoursTarget?: number
-  simulationScores: { date: string; score: number; max: number }[]
+  simulationScores: SimulationScore[]
+}
+
+export interface SimulationScore {
+  date: string
+  score: number
+  max: number
+  /** sim-1 | sim-2 */
+  simId?: string
+  /** Punteggi per prova (chimica, fisica, biologia) */
+  byMateria?: { chimica: number; fisica: number; biologia: number }
 }
 
 export interface PlanSession {
@@ -129,6 +145,8 @@ export interface PlanSession {
   weekStart: string
   /** Se riportato da una settimana precedente non completata */
   carriedFrom?: string
+  /** Ore reali < 50% del piano */
+  lowHours?: boolean
 }
 
 export interface WeekPlan {
@@ -136,7 +154,10 @@ export interface WeekPlan {
   weekEnd: string
   label: string
   goal: string
+  /** Task ancora da fare in questa settimana */
   sessions: PlanSession[]
+  /** Task spuntati che restano visibili (undo) — tipicamente settimana corrente */
+  doneSessions: PlanSession[]
   estimatedHours: number
   /** Ore reali già registrate sui task di questa settimana */
   actualHours: number

@@ -8,6 +8,7 @@ import {
 } from 'react'
 import type { AppProgress, QuizAttempt, SemaforoColore } from '../types'
 import {
+  clearPlanCompletionsForUnita,
   exportProgress,
   importProgress,
   loadProgress,
@@ -32,13 +33,24 @@ interface ProgressCtx {
   addEserciziDone: (unitaId: string, n: number) => void
   /** Completa/riapri un task del piano (usa taskKey stabile) */
   togglePlanItem: (taskKeyOrId: string) => void
-  addSimulation: (score: number, max: number) => void
+  /** Rimuove lo spunta e forza il rientro in coda */
+  reopenPlanItem: (taskKeyOrId: string) => void
+  addSimulation: (
+    score: number,
+    max: number,
+    simId?: string,
+    byMateria?: { chimica: number; fisica: number; biologia: number },
+  ) => void
   resetAll: () => void
   doExport: () => string
   doImport: (json: string) => void
 }
 
 const Ctx = createContext<ProgressCtx | null>(null)
+
+function normalizeKey(taskKeyOrId: string): string {
+  return taskKeyOrId.replace(/^\d{4}-\d{2}-\d{2}::/, '').replace(/^done::/, '')
+}
 
 export function ProgressProvider({ children }: { children: ReactNode }) {
   const [progress, setProgress] = useState<AppProgress>(() => loadProgress())
@@ -80,6 +92,8 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
         if (!next.completedPlanItems.includes(key)) {
           next.completedPlanItems = [...next.completedPlanItems, key]
         }
+        if (!next.planCompletedAt) next.planCompletedAt = {}
+        next.planCompletedAt[key] = new Date().toISOString()
         persist(next)
       },
       recordQuiz: (unitaId, score, total, kind, updateColore) => {
@@ -102,13 +116,29 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
         })
         u.lastScore = score
         if (updateColore) {
-          u.colore = scoreToColore(score, total) as SemaforoColore
+          const nuovo = scoreToColore(score, total) as SemaforoColore
+          u.colore = nuovo
+          // Rientro urgente: se torna rosso/giallo, riporta i task in piano
+          if (nuovo === 'rosso' || nuovo === 'giallo') {
+            clearPlanCompletionsForUnita(next, unitaId, [
+              'teoria',
+              'esercizi',
+              'verifica',
+              'ripasso',
+            ])
+            if (!next.forcedPlanItems) next.forcedPlanItems = []
+            for (const k of ['teoria', 'esercizi', 'verifica'] as const) {
+              const tk = taskKey(unitaId, k)
+              if (!next.forcedPlanItems.includes(tk)) next.forcedPlanItems.push(tk)
+            }
+          }
         }
-        // Auto-completa il task triage/verifica/esercizi sul calendario
         const key = taskKey(unitaId, kind === 'diagnostico' ? 'diagnostico' : kind)
         if (!next.completedPlanItems.includes(key)) {
           next.completedPlanItems = [...next.completedPlanItems, key]
         }
+        if (!next.planCompletedAt) next.planCompletedAt = {}
+        next.planCompletedAt[key] = new Date().toISOString()
         persist(next)
       },
       addEserciziDone: (unitaId, n) => {
@@ -126,27 +156,58 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
         if (!next.completedPlanItems.includes(key)) {
           next.completedPlanItems = [...next.completedPlanItems, key]
         }
+        if (!next.planCompletedAt) next.planCompletedAt = {}
+        next.planCompletedAt[key] = new Date().toISOString()
         persist(next)
       },
       togglePlanItem: (taskKeyOrId) => {
-        const normalized = taskKeyOrId.replace(/^\d{4}-\d{2}-\d{2}::/, '')
-        const set = new Set(progress.completedPlanItems)
-        if (set.has(normalized)) set.delete(normalized)
-        else set.add(normalized)
-        persist({ ...progress, completedPlanItems: [...set] })
-      },
-      addSimulation: (score, max) => {
-        const next = {
-          ...progress,
-          simulationScores: [
-            ...progress.simulationScores,
-            { date: new Date().toISOString(), score, max },
-          ],
+        const normalized = normalizeKey(taskKeyOrId)
+        const next = structuredClone(progress)
+        const set = new Set(next.completedPlanItems)
+        if (!next.planCompletedAt) next.planCompletedAt = {}
+        if (set.has(normalized)) {
+          set.delete(normalized)
+          delete next.planCompletedAt[normalized]
+        } else {
+          set.add(normalized)
+          next.planCompletedAt[normalized] = new Date().toISOString()
+          // togliere da forced se era forzato e ora è fatto
+          next.forcedPlanItems = (next.forcedPlanItems ?? []).filter((k) => k !== normalized)
         }
-        const key = taskKey('sim', 'simulazione')
+        next.completedPlanItems = [...set]
+        persist(next)
+      },
+      reopenPlanItem: (taskKeyOrId) => {
+        const normalized = normalizeKey(taskKeyOrId)
+        const next = structuredClone(progress)
+        next.completedPlanItems = next.completedPlanItems.filter(
+          (id) => id !== normalized && !id.endsWith(`::${normalized}`),
+        )
+        if (next.planCompletedAt) delete next.planCompletedAt[normalized]
+        if (!next.forcedPlanItems) next.forcedPlanItems = []
+        if (!next.forcedPlanItems.includes(normalized)) {
+          next.forcedPlanItems = [...next.forcedPlanItems, normalized]
+        }
+        persist(next)
+      },
+      addSimulation: (score, max, simId, byMateria) => {
+        const next = structuredClone(progress)
+        next.simulationScores = [
+          ...next.simulationScores,
+          {
+            date: new Date().toISOString(),
+            score,
+            max,
+            simId,
+            byMateria,
+          },
+        ]
+        const key = taskKey('sim', simId === 'sim-2' ? 'simulazione2' : 'simulazione')
         if (!next.completedPlanItems.includes(key)) {
           next.completedPlanItems = [...next.completedPlanItems, key]
         }
+        if (!next.planCompletedAt) next.planCompletedAt = {}
+        next.planCompletedAt[key] = new Date().toISOString()
         persist(next)
       },
       resetAll: () => {

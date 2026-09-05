@@ -262,11 +262,13 @@ export function buildChimica(): UnitaContent[] {
           body: `All’equilibrio le velocità di andata e ritorno si eguagliano e le concentrazioni (o attività) restano costanti; non significa che le quantità di reagenti e prodotti siano uguali. La costante Keq (o K) riassume il rapporto tra prodotti e reagenti all’equilibrio. Il quoziente di reazione Q confrontato con K dice la direzione spontanea verso l’equilibrio. Il principio di Le Chatelier predice lo spostamento se si varia concentrazione, pressione (gas) o temperatura: il sistema “contrasta” il disturbo. ΔG° è legato a K (ΔG° = −RT ln K): K grande implica prodotti favoriti all’equilibrio standard. In fisiologia molti equilibri (ossigeno–emoglobina, tamponi) sono dinamici e regolati da flussi continui, non da sistemi chiusi statici. Attenzione: K dipende da T; aggiungere catalizzatore non cambia K, solo il tempo per arrivarci. Distinguere Kc e Kp (gas) e ricordare che solidi puri e solvente non entrano tipicamente nell’espressione di K. Un trucco utile: calcola Q, confrontalo con K e solo dopo applica Le Chatelier; così non confondi la direzione spontanea con lo spostamento dovuto a un disturbo esterno.`,
           formule: ['K = [prodotti]^coeff / [reagenti]^coeff (omogeneo tipico)', 'Q < K → verso prodotti', 'ΔG° = −RT ln K'],
           esempio: 'Aggiungere prodotto a un equilibrio sposta il sistema verso i reagenti (Le Chatelier).',
-          attenzione: 'K dipende da T; aggiungere catalizzatore non cambia K, solo il tempo per arrivarci.',
+          attenzione:
+            'K dipende da T; il catalizzatore non cambia K, solo il tempo. In una reazione gas, aumentare P (diminuire V) sposta verso il lato con meno moli gassose — tipico nei quiz stile simulazione.',
           approfondisci: [
             'Kc vs Kp e quando coincidono.',
             'Effetto della T su K: endotermiche vs esotermiche.',
             'Equilibri eterogenei: solidi e liquidi puri.',
+            'Calcolo rapido: confronta Δn_gas tra prodotti e reagenti prima di ragionare su P/V.',
             'Legame ΔG = ΔG° + RT ln Q: direzione spontanea.',
           ],
         },
@@ -354,7 +356,8 @@ export function buildChimica(): UnitaContent[] {
           body: `Un tampone è una miscela di acido debole e sua base coniugata (o viceversa) che resiste alle variazioni di pH. L’equazione di Henderson–Hasselbalch: pH = pKa + log([A−]/[HA]) mostra che la capacità tampone è massima vicino a pH = pKa e dipende dal rapporto base/acido. Il sangue usa soprattutto il sistema CO2/H2CO3/HCO3− (con emoglobina e proteine): la ventilazione regola CO2, il rene regola HCO3−. Acidosi metabolica abbassa il pH (eccesso di acidi o perdita di bicarbonato); alcalosi lo alza. Compensi respiratori e renali cercano di riportare il rapporto verso valori vitali (pH ≈ 7,35–7,45). Aggiungere piccole quantità di acido forte o base forte cambia poco il pH finché il tampone non è “esaurito”. Capire chi è HA e chi è A− nel sistema carbonico evita errori nella lettura dell’emogasanalisi. Leggere un’emogasanalisi significa applicare Henderson–Hasselbalch al sistema carbonico: se PCO2 sale e HCO3− non compensa, il pH scende; il contrario produce alcalosi.`,
           formule: ['pH = pKa + log([A−]/[HA])', 'CO2 + H2O ⇌ H2CO3 ⇌ H+ + HCO3−'],
           esempio: 'Iperventilazione riduce PCO2 → meno H2CO3 → pH tende a salire (alcalosi respiratoria).',
-          attenzione: 'Tampone ≠ rendere il pH neutro: stabilizza intorno al pKa della coppia.',
+          attenzione:
+            'Tampone ≠ rendere il pH neutro: stabilizza intorno al pKa della coppia. Se [A−]=[HA] allora pH=pKa; dopo addizione di acido/base forte ricalcola le moli prima di Henderson–Hasselbalch.',
           approfondisci: [
             'Emogasanalisi: PCO2, HCO3− e gap anionico (cenni).',
             'Capacità tampone: perché il rapporto e la concentrazione totale contano.',

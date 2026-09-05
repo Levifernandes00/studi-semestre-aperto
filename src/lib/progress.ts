@@ -4,6 +4,7 @@ import { UNITA } from '../data/unita'
 const KEY = 'semestre-aperto-progress-v1'
 
 export const DEFAULT_WEEKLY_HOURS = 28
+export const RIPASSO_DAYS = 14
 
 function emptyUnita(): UnitaProgress {
   return {
@@ -23,6 +24,8 @@ export function defaultProgress(): AppProgress {
     unita,
     includeBasi: false,
     completedPlanItems: [],
+    planCompletedAt: {},
+    forcedPlanItems: [],
     planHoursActual: {},
     weeklyHoursTarget: DEFAULT_WEEKLY_HOURS,
     simulationScores: [],
@@ -40,6 +43,8 @@ export function loadProgress(): AppProgress {
       ...parsed,
       unita: { ...base.unita, ...parsed.unita },
       planHoursActual: { ...base.planHoursActual, ...parsed.planHoursActual },
+      planCompletedAt: { ...base.planCompletedAt, ...parsed.planCompletedAt },
+      forcedPlanItems: parsed.forcedPlanItems ?? [],
       weeklyHoursTarget: parsed.weeklyHoursTarget ?? DEFAULT_WEEKLY_HOURS,
     }
   } catch {
@@ -64,6 +69,8 @@ export function importProgress(json: string): AppProgress {
     ...parsed,
     unita: { ...base.unita, ...parsed.unita },
     planHoursActual: { ...base.planHoursActual, ...parsed.planHoursActual },
+    planCompletedAt: { ...base.planCompletedAt, ...parsed.planCompletedAt },
+    forcedPlanItems: parsed.forcedPlanItems ?? [],
     weeklyHoursTarget: parsed.weeklyHoursTarget ?? DEFAULT_WEEKLY_HOURS,
   }
   saveProgress(merged)
@@ -81,13 +88,44 @@ export function taskKey(unitaId: string, kind: string): string {
   return `${unitaId}::${kind}`
 }
 
+export function parseTaskKey(key: string): { unitaId: string; kind: string } | null {
+  const normalized = key.replace(/^\d{4}-\d{2}-\d{2}::/, '')
+  const idx = normalized.indexOf('::')
+  if (idx <= 0) return null
+  return {
+    unitaId: normalized.slice(0, idx),
+    kind: normalized.slice(idx + 2),
+  }
+}
+
 /** Completato se c’è la taskKey o un id sessione legacy che la contiene */
 export function isPlanTaskDone(completed: string[], key: string, sessionId?: string): boolean {
   if (completed.includes(key)) return true
   if (sessionId && completed.includes(sessionId)) return true
-  // legacy: id conteneva unita-kind
   const [uid, kind] = key.split('::')
   return completed.some(
     (id) => id.includes(`${uid}-${kind}`) || id.includes(`${uid}::${kind}`),
   )
+}
+
+export function daysBetween(isoA: string, isoB: string): number {
+  const a = new Date(isoA).getTime()
+  const b = new Date(isoB).getTime()
+  return Math.floor(Math.abs(b - a) / (1000 * 60 * 60 * 24))
+}
+
+/** Rimuove spunte calendario per i kind indicati (rientro urgente) */
+export function clearPlanCompletionsForUnita(
+  p: AppProgress,
+  unitaId: string,
+  kinds: string[],
+): void {
+  const drop = new Set(kinds.map((k) => taskKey(unitaId, k)))
+  p.completedPlanItems = p.completedPlanItems.filter((id) => {
+    const n = id.replace(/^\d{4}-\d{2}-\d{2}::/, '')
+    return !drop.has(n) && ![...drop].some((d) => id.includes(d.replace('::', '-')))
+  })
+  if (p.planCompletedAt) {
+    for (const k of drop) delete p.planCompletedAt[k]
+  }
 }
