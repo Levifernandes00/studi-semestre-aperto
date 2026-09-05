@@ -1,0 +1,36 @@
+import type { ComponentType } from 'react'
+import {
+  SvgAtom,
+  SvgBernoulli,
+  SvgCarnot,
+  SvgCellCycle,
+  SvgCellMembrane,
+  SvgCircuit,
+  SvgDecay,
+  SvgDerivative,
+  SvgDnaReplication,
+  SvgKinematics,
+  SvgOsmosis,
+  SvgPhScale,
+  SvgPvGas,
+  SvgVectors,
+  SvgWave,
+} from './allSvg'
+
+export const SvgRegistry: Record<string, ComponentType> = {
+  'fis-1-vettori': SvgVectors,
+  'fis-2-cinematica': SvgKinematics,
+  'fis-3-bernoulli': SvgBernoulli,
+  'fis-4-onda': SvgWave,
+  'fis-5-carnot': SvgCarnot,
+  'fis-5-pv': SvgPvGas,
+  'fis-6-circuito': SvgCircuit,
+  'fis-7-decadimento': SvgDecay,
+  'chim-1-atomo': SvgAtom,
+  'chim-2-osmosi': SvgOsmosis,
+  'chim-4-ph': SvgPhScale,
+  'bio-1-membrane': SvgCellMembrane,
+  'bio-2-replicazione': SvgDnaReplication,
+  'bio-7-ciclo': SvgCellCycle,
+  'extra-derivati-grafico': SvgDerivative,
+}
