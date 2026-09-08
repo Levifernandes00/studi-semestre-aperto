@@ -125,14 +125,9 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
           u.colore = nuovo
           // Rientro urgente: se torna rosso/giallo, riporta i task in piano
           if (nuovo === 'rosso' || nuovo === 'giallo') {
-            clearPlanCompletionsForUnita(next, unitaId, [
-              'teoria',
-              'esercizi',
-              'verifica',
-              'ripasso',
-            ])
+            clearPlanCompletionsForUnita(next, unitaId, ['esercizi', 'verifica'])
             if (!next.forcedPlanItems) next.forcedPlanItems = []
-            for (const k of ['teoria', 'esercizi', 'verifica'] as const) {
+            for (const k of ['esercizi', 'verifica'] as const) {
               const tk = taskKey(unitaId, k)
               if (!next.forcedPlanItems.includes(tk)) next.forcedPlanItems.push(tk)
             }

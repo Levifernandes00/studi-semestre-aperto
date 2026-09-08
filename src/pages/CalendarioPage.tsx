@@ -29,7 +29,15 @@ function SessionRow({
           <input type="checkbox" checked={done} onChange={onToggle} />
           <span className="label">
             {s.unitaId !== 'sim' ? (
-              <Link to={`/unita/${s.unitaId}`}>{s.label}</Link>
+              <Link
+                to={
+                  s.kind === 'verifica'
+                    ? `/unita/${s.unitaId}?tab=verifica`
+                    : `/unita/${s.unitaId}?tab=esercizi`
+                }
+              >
+                {s.label}
+              </Link>
             ) : s.kind === 'simulazione' || s.taskKey.includes('simulazione') ? (
               <Link
                 to={
@@ -44,7 +52,6 @@ function SessionRow({
               s.label
             )}
             {s.carriedFrom && <span className="badge warn carry-badge">riportato</span>}
-            {s.kind === 'ripasso' && <span className="badge cal-now">ripasso 14g</span>}
             {s.lowHours && done && (
               <span className="badge warn carry-badge">ore basse — conviene ripetere</span>
             )}
@@ -107,9 +114,9 @@ export function CalendarioPage() {
         <div>
           <h1>Calendario intelligente</h1>
           <p className="muted">
-            Pool settimanale (~{target} h): scegli tu cosa studiare. Gli argomenti spuntati restano in
-            «Fatti» per poterli annullare. I verdi tornano come ripasso ogni 14 giorni; se il triage
-            peggiora, rientrano in cima.
+            Pool settimanale (~{target} h): da fare Esercizi e Prove sugli argomenti. Spunta quando
+            hai finito; i fatti restano sotto per annullare. Se il semaforo peggiora, Esercizi e Prove
+            rientrano in cima.
           </p>
         </div>
         <div className="cal-controls">
@@ -199,7 +206,7 @@ export function CalendarioPage() {
                   />
                 ))}
                 {todo.length === 0 && (
-                  <li className="empty">Niente in coda — ripassa i verdi o fai una simulazione.</li>
+                  <li className="empty">Niente in coda — fai una prova o una simulazione.</li>
                 )}
               </ul>
 

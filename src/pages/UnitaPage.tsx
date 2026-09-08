@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { getContent } from '../data/content'
 import { getMurUnita, getUnita, materiaLabel } from '../data/unita'
 import { pickQuestions, QuizPlayer } from '../components/QuizPlayer'
@@ -24,6 +24,7 @@ function sameIds(a: string[], b: string[]) {
 
 export function UnitaPage() {
   const { id } = useParams()
+  const [searchParams] = useSearchParams()
   const unita = id ? getUnita(id) : undefined
   const content = id ? getContent(id) : undefined
   const murParent = unita?.parentUnitaId ? getMurUnita(unita.parentUnitaId) : undefined
@@ -37,13 +38,24 @@ export function UnitaPage() {
   const [tab, setTab] = useState<StudioTab>('teoria')
   const [quizKey, setQuizKey] = useState(0)
 
-  // Reset local UI when navigating between units
+  const tabFromQuery = searchParams.get('tab')
+  const deepLinkTab: StudioTab | null =
+    tabFromQuery === 'esercizi' || tabFromQuery === 'verifica' || tabFromQuery === 'teoria' || tabFromQuery === 'capire'
+      ? tabFromQuery
+      : null
+
+  // Reset local UI when navigating between units; honor ?tab= from calendario
   useEffect(() => {
     setForceTriage(false)
-    setStudioUnlocked(false)
-    setTab('teoria')
     setQuizKey(0)
-  }, [id])
+    if (deepLinkTab === 'esercizi' || deepLinkTab === 'verifica') {
+      setStudioUnlocked(true)
+      setTab(deepLinkTab)
+    } else {
+      setStudioUnlocked(false)
+      setTab(deepLinkTab ?? 'teoria')
+    }
+  }, [id, deepLinkTab])
 
   const inTriage = (!triaged && !studioUnlocked) || forceTriage
 

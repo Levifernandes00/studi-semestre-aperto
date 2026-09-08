@@ -2,8 +2,6 @@ import { getUnita, UNITA_APPROFONDIMENTI, UNITA_UFFICIALI } from '../data/unita'
 import { colorePriority } from './semaforo'
 import {
   DEFAULT_WEEKLY_HOURS,
-  RIPASSO_DAYS,
-  daysBetween,
   isPlanTaskDone,
   parseTaskKey,
   taskKey,
@@ -49,25 +47,25 @@ type Task = {
 
 function labelForTask(unitaId: string, kind: string): string {
   if (unitaId === 'sim') {
-    if (kind === 'simulazione2') return 'Simulazione II (giornata 3 prove)'
-    if (kind === 'ripasso') return 'Ripasso mirato rossi/gialli'
-    if (kind === 'simulazione') return 'Simulazione I (giornata 3 prove)'
+    if (kind === 'simulazione2') return 'Prova · Simulazione II (giornata)'
+    if (kind === 'simulazione') return 'Prova · Simulazione I (giornata)'
+    if (kind === 'ripasso') return 'Esercizi · ripasso mirato'
   }
   const u = getUnita(unitaId)
   const title = u?.titolo ?? unitaId
+  const badge = u?.badge ? `${u.badge} · ` : ''
   switch (kind) {
-    case 'diagnostico':
-      return `Triage · ${title}`
-    case 'teoria':
-      return u?.approfondimento ? `Basi · ${title}` : `Teoria · ${title}`
     case 'esercizi':
-      return `Esercizi · ${title}`
+      return `Esercizi · ${badge}${title}`
     case 'verifica':
-      return `Verifica · ${title}`
-    case 'ripasso':
-      return `Ripasso · ${title}`
+      return `Prova · ${badge}${title}`
     case 'simulazione':
-      return `Simulazione · ${title}`
+      return `Prova · Simulazione · ${title}`
+    case 'diagnostico':
+      return `Esercizi · ${title}` // legacy
+    case 'teoria':
+    case 'ripasso':
+      return `Esercizi · ${title}` // legacy
     default:
       return `${kind} · ${title}`
   }
@@ -77,15 +75,13 @@ function kindHours(unitaId: string, kind: string): number {
   const u = getUnita(unitaId)
   const cfu = u?.cfu ?? 1
   switch (kind) {
-    case 'diagnostico':
     case 'verifica':
-      return 0.5
-    case 'teoria':
-      return u?.approfondimento ? 1.5 : hoursForCfu(cfu) * 0.45
+      return 0.75
     case 'esercizi':
-      return hoursForCfu(cfu) * 0.4
+    case 'diagnostico':
+    case 'teoria':
     case 'ripasso':
-      return 1
+      return Math.round(hoursForCfu(cfu) * 0.7 * 10) / 10
     case 'simulazione':
     case 'simulazione2':
       return 3.5
@@ -114,46 +110,9 @@ function toSession(
   }
 }
 
-/** Completamenti ancora validi: i ripassi scaduti dopo RIPASSO_DAYS tornano in coda */
-function activeCompletedKeys(progress: AppProgress, now: Date): string[] {
-  const completedAt = progress.planCompletedAt ?? {}
-  const nowIso = now.toISOString()
-  return progress.completedPlanItems.filter((raw) => {
-    const key = raw.replace(/^\d{4}-\d{2}-\d{2}::/, '')
-    const parsed = parseTaskKey(key)
-    if (parsed?.kind === 'ripasso') {
-      const at = completedAt[key]
-      if (at && daysBetween(at, nowIso) >= RIPASSO_DAYS) return false
-    }
-    return true
-  })
-}
-
-function buildRipassoTasks(progress: AppProgress, done: string[], now: Date): Task[] {
-  const completedAt = progress.planCompletedAt ?? {}
-  const nowIso = now.toISOString()
-  const out: Task[] = []
-
-  for (const u of UNITA_UFFICIALI) {
-    const colore = progress.unita[u.id]?.colore ?? 'grigio'
-    if (colore !== 'verde') continue
-    const key = taskKey(u.id, 'ripasso')
-    if (isPlanTaskDone(done, key)) continue
-
-    const lastRipasso = completedAt[key]
-    const lastAttempt = progress.unita[u.id]?.attempts.at(-1)?.date
-    const last = [lastRipasso, lastAttempt].filter(Boolean).sort().at(-1)
-    if (last && daysBetween(last, nowIso) < RIPASSO_DAYS) continue
-
-    out.push({
-      unitaId: u.id,
-      kind: 'ripasso',
-      label: `Ripasso · ${u.titolo}`,
-      hours: 1,
-      taskKey: key,
-    })
-  }
-  return out
+/** Completamenti ancora validi (legacy ripasso: non filtriamo più per scadenza spaced) */
+function activeCompletedKeys(progress: AppProgress, _now: Date): string[] {
+  return progress.completedPlanItems.map((raw) => raw.replace(/^\d{4}-\d{2}-\d{2}::/, ''))
 }
 
 function buildForcedTasks(progress: AppProgress, done: string[], existing: Set<string>): Task[] {
@@ -163,25 +122,25 @@ function buildForcedTasks(progress: AppProgress, done: string[], existing: Set<s
     if (existing.has(key)) continue
     const parsed = parseTaskKey(key)
     if (!parsed) continue
-    const kind = (parsed.kind === 'simulazione2' ? 'simulazione' : parsed.kind) as PlanSession['kind']
-    if (
-      !['diagnostico', 'teoria', 'esercizi', 'verifica', 'simulazione', 'ripasso'].includes(kind) &&
-      parsed.kind !== 'simulazione2'
-    ) {
-      continue
-    }
+    // Solo esercizi / prove (verifica + simulazioni); mappa teoria/diagnostico/ripasso → esercizi
+    let kind = parsed.kind
+    if (kind === 'simulazione2') kind = 'simulazione'
+    if (kind === 'teoria' || kind === 'diagnostico' || kind === 'ripasso') kind = 'esercizi'
+    if (!['esercizi', 'verifica', 'simulazione'].includes(kind)) continue
     out.push({
       unitaId: parsed.unitaId,
-      kind: parsed.kind === 'simulazione2' ? 'simulazione' : kind,
-      label: labelForTask(parsed.unitaId, parsed.kind),
-      hours: Math.round(kindHours(parsed.unitaId, parsed.kind) * 10) / 10,
+      kind: kind as PlanSession['kind'],
+      label: labelForTask(parsed.unitaId, kind === 'simulazione' ? parsed.kind : kind),
+      hours: Math.round(kindHours(parsed.unitaId, kind) * 10) / 10,
       taskKey: key,
     })
   }
   return out
 }
 
-function buildBacklog(progress: AppProgress, done: string[], now: Date): Task[] {
+const ESERCIZI_SOGLIA = 8
+
+function buildBacklog(progress: AppProgress, done: string[], _now: Date): Task[] {
   const official = [...UNITA_UFFICIALI].sort((a, b) => {
     const ca = progress.unita[a.id]?.colore ?? 'grigio'
     const cb = progress.unita[b.id]?.colore ?? 'grigio'
@@ -206,36 +165,28 @@ function buildBacklog(progress: AppProgress, done: string[], now: Date): Task[] 
   for (const u of official) {
     const st = progress.unita[u.id]
     const colore = st?.colore ?? 'grigio'
-    if (colore === 'grigio') {
-      push({
-        unitaId: u.id,
-        kind: 'diagnostico',
-        label: `Triage · ${u.titolo}`,
-        hours: 0.5,
-      })
-    }
-    if (!st?.theoryRead || colore === 'rosso' || colore === 'giallo' || colore === 'grigio') {
-      push({
-        unitaId: u.id,
-        kind: 'teoria',
-        label: `Teoria · ${u.titolo}`,
-        hours: hoursForCfu(u.cfu) * 0.45,
-      })
-    }
-    if ((st?.eserciziDone ?? 0) < 5 || colore === 'rosso' || colore === 'giallo') {
+    const needEsercizi =
+      colore === 'grigio' ||
+      colore === 'rosso' ||
+      colore === 'giallo' ||
+      (st?.eserciziDone ?? 0) < ESERCIZI_SOGLIA
+    if (needEsercizi) {
       push({
         unitaId: u.id,
         kind: 'esercizi',
-        label: `Esercizi · ${u.titolo}`,
-        hours: hoursForCfu(u.cfu) * 0.4,
+        label: labelForTask(u.id, 'esercizi'),
+        hours: kindHours(u.id, 'esercizi'),
       })
     }
-    if (colore === 'rosso' || colore === 'giallo') {
+
+    const hasVerifica = st?.attempts.some((a) => a.kind === 'verifica') ?? false
+    const needProva = colore !== 'verde' || !hasVerifica
+    if (needProva) {
       push({
         unitaId: u.id,
         kind: 'verifica',
-        label: `Verifica · ${u.titolo}`,
-        hours: 0.5,
+        label: labelForTask(u.id, 'verifica'),
+        hours: kindHours(u.id, 'verifica'),
       })
     }
   }
@@ -243,20 +194,15 @@ function buildBacklog(progress: AppProgress, done: string[], now: Date): Task[] 
   for (const u of extras) {
     push({
       unitaId: u.id,
-      kind: 'teoria',
-      label: `Basi · ${u.titolo}`,
+      kind: 'esercizi',
+      label: labelForTask(u.id, 'esercizi'),
       hours: 1.5,
     })
   }
 
-  for (const t of buildRipassoTasks(progress, done, now)) push(t)
-
   const existing = new Set(backlog.map((t) => t.taskKey))
   const forced = buildForcedTasks(progress, done, existing)
-  // Priorità: forzati e ripassi in cima, poi il resto del backlog
-  const ripassi = backlog.filter((t) => t.kind === 'ripasso')
-  const rest = backlog.filter((t) => t.kind !== 'ripasso')
-  return [...forced, ...ripassi, ...rest]
+  return [...forced, ...backlog]
 }
 
 function fillWeek(
@@ -383,23 +329,16 @@ export function buildCalendar(progress: AppProgress, now = new Date()): WeekPlan
       {
         unitaId: 'sim',
         kind: 'simulazione' as const,
-        label: 'Simulazione I (giornata 3 prove)',
+        label: 'Prova · Simulazione I (giornata)',
         hours: 3.5,
         taskKey: taskKey('sim', 'simulazione'),
       },
       {
         unitaId: 'sim',
         kind: 'simulazione' as const,
-        label: 'Simulazione II (giornata 3 prove)',
+        label: 'Prova · Simulazione II (giornata)',
         hours: 3.5,
         taskKey: taskKey('sim', 'simulazione2'),
-      },
-      {
-        unitaId: 'sim',
-        kind: 'ripasso' as const,
-        label: 'Ripasso mirato rossi/gialli',
-        hours: 4,
-        taskKey: taskKey('sim', 'ripasso'),
       },
     ] satisfies Task[]
   ).filter((t) => !isPlanTaskDone(done, t.taskKey))
@@ -454,8 +393,8 @@ export function buildCalendar(progress: AppProgress, now = new Date()): WeekPlan
           ? `Priorità: ${overdue.length} riportati · spunta = fatto (reversibile)`
           : 'Scegli dal pool · i fatti restano qui sotto per annullare'
         : isLastTwo
-          ? 'Simulazioni e ripasso mirato'
-          : 'Copertura unità + ripassi verdi (ogni 14 giorni)'
+          ? 'Prove: simulazioni d’esame'
+          : 'Esercizi e Prove sugli argomenti'
 
     if (!isPast) {
       weeks.push({
