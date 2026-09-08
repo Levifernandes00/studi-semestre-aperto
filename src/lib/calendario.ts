@@ -147,6 +147,9 @@ function buildBacklog(progress: AppProgress, done: string[], _now: Date): Task[]
     const pa = colorePriority(ca as SemaforoColore)
     const pb = colorePriority(cb as SemaforoColore)
     if (pa !== pb) return pa - pb
+    const na = a.numero ?? 0
+    const nb = b.numero ?? 0
+    if (na !== nb) return na - nb
     const order = { fisica: 0, chimica: 1, biologia: 2 }
     if (order[a.materia] !== order[b.materia]) return order[a.materia] - order[b.materia]
     return b.cfu - a.cfu

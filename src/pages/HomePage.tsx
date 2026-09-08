@@ -58,6 +58,16 @@ function Column({
   )
 }
 
+const MATERIA_ORDER = { fisica: 0, chimica: 1, biologia: 2 } as const
+
+/** Con filtro Tutte: Unità 1 di tutte le materie, poi 2, … */
+function compareByUnita(a: Unita, b: Unita): number {
+  const na = a.numero ?? 0
+  const nb = b.numero ?? 0
+  if (na !== nb) return na - nb
+  return MATERIA_ORDER[a.materia] - MATERIA_ORDER[b.materia]
+}
+
 export function HomePage() {
   const { progress } = useProgress()
   const [filtro, setFiltro] = useState<'tutte' | 'biologia' | 'chimica' | 'fisica'>('tutte')
@@ -79,13 +89,19 @@ export function HomePage() {
       const c = progress.unita[u.id]?.colore ?? 'grigio'
       g[c].push(u)
     }
+    if (filtro === 'tutte') {
+      for (const c of Object.keys(g) as SemaforoColore[]) {
+        g[c].sort(compareByUnita)
+      }
+    }
     return g
-  }, [filtered, progress])
+  }, [filtered, progress, filtro])
 
-  const murList = useMemo(
-    () => MUR_UNITA.filter((u) => filtro === 'tutte' || u.materia === filtro),
-    [filtro],
-  )
+  const murList = useMemo(() => {
+    const list = MUR_UNITA.filter((u) => filtro === 'tutte' || u.materia === filtro)
+    if (filtro === 'tutte') return [...list].sort(compareByUnita)
+    return list
+  }, [filtro])
 
   const done = ARGOMENTI.filter((u) => (progress.unita[u.id]?.colore ?? 'grigio') !== 'grigio')
     .length
