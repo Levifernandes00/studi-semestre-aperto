@@ -36,6 +36,8 @@ export interface TheoryVideo {
 export interface TheoryRef {
   label: string
   detail?: string
+  /** Link pubblico opzionale (syllabus, open edu, Wikipedia, ecc.) */
+  url?: string
 }
 
 export interface TheorySection {
@@ -74,6 +76,10 @@ export interface Unita {
   /** Perché questo extra appare in quella unità ufficiale */
   motivoCollegamento?: Record<string, string>
   badge?: string
+  /** Se impostato: questa cartella è un argomento figlio di un’unità MUR */
+  parentUnitaId?: string
+  /** Ordine entro l’unità MUR (0-based) */
+  ordine?: number
 }
 
 export interface UnitaContent {
@@ -103,6 +109,13 @@ export interface UnitaProgress {
   theoryRead: boolean
   eserciziDone: number
   completedSessions: string[]
+  /** Sessione esercizi in corso (ripresa dopo cambio tab / reload) */
+  eserciziSession?: {
+    questionIds: string[]
+    answers: (string | number | null)[]
+    index: number
+    updatedAt: string
+  }
 }
 
 export interface AppProgress {

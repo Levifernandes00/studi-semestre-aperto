@@ -1,5 +1,5 @@
 import type { AppProgress, SemaforoColore, UnitaProgress } from '../types'
-import { UNITA } from '../data/unita'
+import { UNITA, getArgomentiOf } from '../data/unita'
 
 const KEY = 'semestre-aperto-progress-v1'
 
@@ -38,10 +38,29 @@ export function loadProgress(): AppProgress {
     if (!raw) return defaultProgress()
     const parsed = JSON.parse(raw) as AppProgress
     const base = defaultProgress()
+    const mergedUnita: Record<string, UnitaProgress> = { ...base.unita, ...parsed.unita }
+
+    // Migrazione: colore da unità MUR legacy (bio-1, …) → argomenti figli
+    for (const [id, st] of Object.entries(parsed.unita ?? {})) {
+      const kids = getArgomentiOf(id)
+      if (!kids.length) continue
+      for (const kid of kids) {
+        const cur = mergedUnita[kid.id] ?? emptyUnita()
+        if (cur.colore === 'grigio' && st.colore && st.colore !== 'grigio') {
+          mergedUnita[kid.id] = {
+            ...cur,
+            colore: st.colore,
+            lastScore: st.lastScore,
+            eserciziSession: undefined,
+          }
+        }
+      }
+    }
+
     return {
       ...base,
       ...parsed,
-      unita: { ...base.unita, ...parsed.unita },
+      unita: mergedUnita,
       planHoursActual: { ...base.planHoursActual, ...parsed.planHoursActual },
       planCompletedAt: { ...base.planCompletedAt, ...parsed.planCompletedAt },
       forcedPlanItems: parsed.forcedPlanItems ?? [],

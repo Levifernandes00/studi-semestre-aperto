@@ -6,7 +6,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import type { AppProgress, QuizAttempt, SemaforoColore } from '../types'
+import type { AppProgress, QuizAttempt, SemaforoColore, UnitaProgress } from '../types'
 import {
   clearPlanCompletionsForUnita,
   exportProgress,
@@ -16,6 +16,17 @@ import {
   taskKey,
 } from '../lib/progress'
 import { scoreToColore } from '../lib/semaforo'
+
+function emptyUnita(partial?: Partial<UnitaProgress>): UnitaProgress {
+  return {
+    colore: 'grigio',
+    attempts: [],
+    theoryRead: false,
+    eserciziDone: 0,
+    completedSessions: [],
+    ...partial,
+  }
+}
 
 interface ProgressCtx {
   progress: AppProgress
@@ -31,6 +42,15 @@ interface ProgressCtx {
     updateColore: boolean,
   ) => void
   addEserciziDone: (unitaId: string, n: number) => void
+  saveEserciziSession: (
+    unitaId: string,
+    session: {
+      questionIds: string[]
+      answers: (string | number | null)[]
+      index: number
+    },
+  ) => void
+  clearEserciziSession: (unitaId: string) => void
   /** Completa/riapri un task del piano (usa taskKey stabile) */
   togglePlanItem: (taskKeyOrId: string) => void
   /** Rimuove lo spunta e forza il rientro in coda */
@@ -79,15 +99,8 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
       },
       markTheory: (unitaId) => {
         const next = structuredClone(progress)
-        if (!next.unita[unitaId]) {
-          next.unita[unitaId] = {
-            colore: 'grigio',
-            attempts: [],
-            theoryRead: true,
-            eserciziDone: 0,
-            completedSessions: [],
-          }
-        } else next.unita[unitaId].theoryRead = true
+        if (!next.unita[unitaId]) next.unita[unitaId] = emptyUnita({ theoryRead: true })
+        else next.unita[unitaId].theoryRead = true
         const key = taskKey(unitaId, 'teoria')
         if (!next.completedPlanItems.includes(key)) {
           next.completedPlanItems = [...next.completedPlanItems, key]
@@ -98,15 +111,7 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
       },
       recordQuiz: (unitaId, score, total, kind, updateColore) => {
         const next = structuredClone(progress)
-        if (!next.unita[unitaId]) {
-          next.unita[unitaId] = {
-            colore: 'grigio',
-            attempts: [],
-            theoryRead: false,
-            eserciziDone: 0,
-            completedSessions: [],
-          }
-        }
+        if (!next.unita[unitaId]) next.unita[unitaId] = emptyUnita()
         const u = next.unita[unitaId]
         u.attempts.push({
           date: new Date().toISOString(),
@@ -143,21 +148,40 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
       },
       addEserciziDone: (unitaId, n) => {
         const next = structuredClone(progress)
-        if (!next.unita[unitaId]) {
-          next.unita[unitaId] = {
-            colore: 'grigio',
-            attempts: [],
-            theoryRead: false,
-            eserciziDone: n,
-            completedSessions: [],
-          }
-        } else next.unita[unitaId].eserciziDone += n
+        if (!next.unita[unitaId]) next.unita[unitaId] = emptyUnita({ eserciziDone: n })
+        else next.unita[unitaId].eserciziDone += n
         const key = taskKey(unitaId, 'esercizi')
         if (!next.completedPlanItems.includes(key)) {
           next.completedPlanItems = [...next.completedPlanItems, key]
         }
         if (!next.planCompletedAt) next.planCompletedAt = {}
         next.planCompletedAt[key] = new Date().toISOString()
+        persist(next)
+      },
+      saveEserciziSession: (unitaId, session) => {
+        const cur = progress.unita[unitaId]?.eserciziSession
+        if (
+          cur &&
+          cur.index === session.index &&
+          cur.questionIds.length === session.questionIds.length &&
+          cur.questionIds.every((id, i) => id === session.questionIds[i]) &&
+          cur.answers.length === session.answers.length &&
+          cur.answers.every((a, i) => a === session.answers[i])
+        ) {
+          return
+        }
+        const next = structuredClone(progress)
+        if (!next.unita[unitaId]) next.unita[unitaId] = emptyUnita()
+        next.unita[unitaId].eserciziSession = {
+          ...session,
+          updatedAt: new Date().toISOString(),
+        }
+        persist(next)
+      },
+      clearEserciziSession: (unitaId) => {
+        const next = structuredClone(progress)
+        if (!next.unita[unitaId]) return
+        delete next.unita[unitaId].eserciziSession
         persist(next)
       },
       togglePlanItem: (taskKeyOrId) => {

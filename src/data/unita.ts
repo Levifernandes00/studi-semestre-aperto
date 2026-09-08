@@ -1,8 +1,7 @@
-import type { Unita } from '../types'
+import type { Materia, Unita } from '../types'
 
-/** 21 unità ufficiali + approfondimenti opzionali */
-export const UNITA: Unita[] = [
-  // —— Biologia ——
+/** Unità MUR 2026 (gruppi in home — non sono cartelle di studio) */
+export const MUR_UNITA: Unita[] = [
   {
     id: 'bio-1',
     materia: 'biologia',
@@ -101,8 +100,6 @@ export const UNITA: Unita[] = [
       'Oncogeni e oncosoppressori',
     ],
   },
-
-  // —— Chimica ——
   {
     id: 'chim-1',
     materia: 'chimica',
@@ -201,8 +198,6 @@ export const UNITA: Unita[] = [
       'Nucleotidi e modificazioni non enzimatiche',
     ],
   },
-
-  // —— Fisica ——
   {
     id: 'fis-1',
     materia: 'fisica',
@@ -301,8 +296,37 @@ export const UNITA: Unita[] = [
       'Radioattività, decadimento ed emivita',
     ],
   },
+]
 
-  // —— Per capire meglio ——
+function slugify(s: string): string {
+  return s
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 48)
+}
+
+/** Cartelle di studio ufficiali = un sottotitolo ciascuna */
+export const ARGOMENTI: Unita[] = MUR_UNITA.flatMap((parent) => {
+  const n = parent.sottotitoli.length
+  const cfuEach = Math.round((parent.cfu / n) * 1000) / 1000
+  return parent.sottotitoli.map((titolo, i) => ({
+    id: `${parent.id}-${slugify(titolo)}`,
+    materia: parent.materia,
+    numero: parent.numero,
+    titolo,
+    cfu: cfuEach,
+    approfondimento: false,
+    sottotitoli: [titolo],
+    parentUnitaId: parent.id,
+    ordine: i,
+    badge: `Unità ${parent.numero}`,
+  }))
+})
+
+const APPROFONDIMENTI: Unita[] = [
   {
     id: 'extra-derivati',
     materia: 'fisica',
@@ -311,12 +335,14 @@ export const UNITA: Unita[] = [
     cfu: 0,
     approfondimento: true,
     badge: 'non in programma 2026',
-    collegataA: ['fis-1', 'fis-2', 'fis-5'],
-    motivoCollegamento: {
-      'fis-1': 'Pendenze e aree nei grafici di grandezze e vettori',
-      'fis-2': 'Velocità, accelerazione e lavoro come pendenza e area',
-      'fis-5': 'Lavoro termodinamico e variazioni (ΔU, Q) come «somma di pezzetti»',
-    },
+    collegataA: ARGOMENTI.filter((a) => ['fis-1', 'fis-2', 'fis-5'].includes(a.parentUnitaId!)).map(
+      (a) => a.id,
+    ),
+    motivoCollegamento: Object.fromEntries(
+      ARGOMENTI.filter((a) => a.parentUnitaId === 'fis-2' || a.parentUnitaId === 'fis-1' || a.parentUnitaId === 'fis-5').map(
+        (a) => [a.id, 'Pendenze, aree e bilanci energetici nei grafici'],
+      ),
+    ),
     sottotitoli: [
       'Velocità e accelerazione come derivate',
       'Lavoro come area sotto la curva',
@@ -331,16 +357,10 @@ export const UNITA: Unita[] = [
     cfu: 0,
     approfondimento: true,
     badge: 'non in programma 2026',
-    collegataA: ['fis-5', 'chim-1'],
-    motivoCollegamento: {
-      'fis-5': 'Limiti di PV=nRT e calorimetria oltre il modello ideale',
-      'chim-1': 'Stati di aggregazione e forze intermolecolari',
-    },
-    sottotitoli: [
-      'Quando fallisce PV = nRT',
-      'Teoria cinetica',
-      'Calorimetria avanzata',
-    ],
+    collegataA: ARGOMENTI.filter((a) => a.parentUnitaId === 'fis-5' || a.parentUnitaId === 'chim-1').map(
+      (a) => a.id,
+    ),
+    sottotitoli: ['Quando fallisce PV = nRT', 'Teoria cinetica', 'Calorimetria avanzata'],
   },
   {
     id: 'extra-fotoelettrico',
@@ -350,10 +370,7 @@ export const UNITA: Unita[] = [
     cfu: 0,
     approfondimento: true,
     badge: 'non in programma 2026',
-    collegataA: ['fis-7'],
-    motivoCollegamento: {
-      'fis-7': 'Fotoni, quanti di energia e ponte alle radiazioni',
-    },
+    collegataA: ARGOMENTI.filter((a) => a.parentUnitaId === 'fis-7').map((a) => a.id),
     sottotitoli: ['Fotoni e soglia', 'Energia cinetica dei fotoelettroni', 'Ponte verso le radiazioni'],
   },
   {
@@ -364,11 +381,9 @@ export const UNITA: Unita[] = [
     cfu: 0,
     approfondimento: true,
     badge: 'non in programma 2026',
-    collegataA: ['fis-2', 'fis-4'],
-    motivoCollegamento: {
-      'fis-2': 'Conservazione della quantità di moto e impulsi',
-      'fis-4': 'Oscillatore armonico come sorgente di onde',
-    },
+    collegataA: ARGOMENTI.filter((a) => a.parentUnitaId === 'fis-2' || a.parentUnitaId === 'fis-4').map(
+      (a) => a.id,
+    ),
     sottotitoli: ['Impulso e urti', 'Elastici e anelastici', 'Moto armonico semplice'],
   },
   {
@@ -379,11 +394,9 @@ export const UNITA: Unita[] = [
     cfu: 0,
     approfondimento: true,
     badge: 'non in programma 2026',
-    collegataA: ['chim-1', 'fis-7'],
-    motivoCollegamento: {
-      'chim-1': 'Isotopi e struttura atomica',
-      'fis-7': 'Decadimento e usi diagnostici',
-    },
+    collegataA: ARGOMENTI.filter((a) => a.parentUnitaId === 'chim-1' || a.parentUnitaId === 'fis-7').map(
+      (a) => a.id,
+    ),
     sottotitoli: ['Isotopi radioattivi', 'Usi diagnostici', 'Collegamento al decadimento'],
   },
   {
@@ -394,10 +407,7 @@ export const UNITA: Unita[] = [
     cfu: 0,
     approfondimento: true,
     badge: 'non in programma 2026',
-    collegataA: ['bio-3'],
-    motivoCollegamento: {
-      'bio-3': 'Ripiegamento proteico, chaperon e degradazione',
-    },
+    collegataA: ARGOMENTI.filter((a) => a.parentUnitaId === 'bio-3').map((a) => a.id),
     sottotitoli: ['Proteina PrP', 'Propagazione del misfolding', 'Collegamento a chaperon e malattie'],
   },
   {
@@ -408,11 +418,9 @@ export const UNITA: Unita[] = [
     cfu: 0,
     approfondimento: true,
     badge: 'non in programma 2026',
-    collegataA: ['fis-6', 'fis-7'],
-    motivoCollegamento: {
-      'fis-6': 'Campo elettrico/magnetico oltre Coulomb e Oersted',
-      'fis-7': 'Ottica e moduli elastici in contesto biomedico',
-    },
+    collegataA: ARGOMENTI.filter((a) => a.parentUnitaId === 'fis-6' || a.parentUnitaId === 'fis-7').map(
+      (a) => a.id,
+    ),
     sottotitoli: [
       'Legge di Gauss (cenno)',
       'Biot-Savart (cenno)',
@@ -422,11 +430,26 @@ export const UNITA: Unita[] = [
   },
 ]
 
-export const UNITA_UFFICIALI = UNITA.filter((u) => !u.approfondimento)
-export const UNITA_APPROFONDIMENTI = UNITA.filter((u) => u.approfondimento)
+/** Studio: argomenti ufficiali + approfondimenti */
+export const UNITA: Unita[] = [...ARGOMENTI, ...APPROFONDIMENTI]
+export const UNITA_UFFICIALI = ARGOMENTI
+export const UNITA_APPROFONDIMENTI = APPROFONDIMENTI
 
 export function getUnita(id: string): Unita | undefined {
-  return UNITA.find((u) => u.id === id)
+  return UNITA.find((u) => u.id === id) ?? MUR_UNITA.find((u) => u.id === id)
+}
+
+export function getMurUnita(id: string): Unita | undefined {
+  return MUR_UNITA.find((u) => u.id === id)
+}
+
+export function getArgomentiOf(parentUnitaId: string): Unita[] {
+  return ARGOMENTI.filter((a) => a.parentUnitaId === parentUnitaId)
+}
+
+export function parentIdOf(unitaId: string): string | undefined {
+  const u = getUnita(unitaId)
+  return u?.parentUnitaId ?? (MUR_UNITA.some((m) => m.id === unitaId) ? unitaId : undefined)
 }
 
 export function materiaLabel(m: string): string {
@@ -434,4 +457,9 @@ export function materiaLabel(m: string): string {
   if (m === 'chimica') return 'Chimica'
   if (m === 'fisica') return 'Fisica'
   return m
+}
+
+export function murGroupsForMateria(materia: Materia | 'tutte'): Unita[] {
+  if (materia === 'tutte') return MUR_UNITA
+  return MUR_UNITA.filter((u) => u.materia === materia)
 }

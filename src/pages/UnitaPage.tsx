@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { getContent } from '../data/content'
-import { getUnita, materiaLabel } from '../data/unita'
+import { getMurUnita, getUnita, materiaLabel } from '../data/unita'
 import { pickQuestions, QuizPlayer } from '../components/QuizPlayer'
 import { ArgomentiCorrelati } from '../components/ArgomentiCorrelati'
 import { TheoryFigureView } from '../components/theory/TheoryFigure'
@@ -18,11 +18,17 @@ function hasTriageDone(attempts: { kind: string }[] | undefined, colore?: string
   return false
 }
 
+function sameIds(a: string[], b: string[]) {
+  return a.length === b.length && a.every((id, i) => id === b[i])
+}
+
 export function UnitaPage() {
   const { id } = useParams()
   const unita = id ? getUnita(id) : undefined
   const content = id ? getContent(id) : undefined
-  const { progress, markTheory, recordQuiz, addEserciziDone } = useProgress()
+  const murParent = unita?.parentUnitaId ? getMurUnita(unita.parentUnitaId) : undefined
+  const { progress, markTheory, recordQuiz, addEserciziDone, saveEserciziSession, clearEserciziSession } =
+    useProgress()
   const st = id ? progress.unita[id] : undefined
 
   const triaged = hasTriageDone(st?.attempts, st?.colore)
@@ -54,6 +60,21 @@ export function UnitaPage() {
   }, [content, quizKey])
 
   const eserciziQs = useMemo(() => content?.esercizi ?? [], [content])
+  const eserciziIds = useMemo(() => eserciziQs.map((q) => q.id), [eserciziQs])
+
+  const eserciziResume = useMemo(() => {
+    const session = st?.eserciziSession
+    if (!session || !sameIds(session.questionIds, eserciziIds)) return null
+    return session
+  }, [st?.eserciziSession, eserciziIds])
+
+  const onEserciziProgress = useCallback(
+    (answers: (string | number | null)[], index: number) => {
+      if (!id || eserciziIds.length === 0) return
+      saveEserciziSession(id, { questionIds: eserciziIds, answers, index })
+    },
+    [id, eserciziIds, saveEserciziSession],
+  )
 
   if (!unita || !content) {
     return (
@@ -79,12 +100,14 @@ export function UnitaPage() {
             </h1>
             <p className="muted">
               <span className={`tag mat-${unita.materia}`}>{materiaLabel(unita.materia)}</span>{' '}
-              {unita.approfondimento ? (
-                <span className="badge warn">{unita.badge}</span>
-              ) : (
-                <span>{unita.cfu} CFU</span>
-              )}
+              {unita.badge && <span className="badge">{unita.badge}</span>}{' '}
+              {unita.approfondimento ? null : <span>{unita.cfu} CFU</span>}
             </p>
+            {murParent && (
+              <p className="muted small">
+                Fa parte di: Unità {murParent.numero} — {murParent.titolo}
+              </p>
+            )}
             <p className="card tip triage-intro">
               Come in pronto soccorso: prima valutiamo quanto conosci l’argomento. Il risultato
               assegna un codice (rosso / giallo / verde) e apre lo studio.
@@ -141,9 +164,17 @@ export function UnitaPage() {
             {unita.approfondimento ? (
               <span className="badge warn">{unita.badge}</span>
             ) : (
-              <span>{unita.cfu} CFU</span>
+              <>
+                {unita.badge && <span className="badge">{unita.badge}</span>}{' '}
+                <span>{unita.cfu} CFU</span>
+              </>
             )}
           </p>
+          {murParent && (
+            <p className="muted small">
+              Fa parte di: Unità {murParent.numero} — {murParent.titolo}
+            </p>
+          )}
         </div>
         <div className="chart-actions">
           <button
@@ -258,11 +289,17 @@ export function UnitaPage() {
 
           {content.riferimenti && content.riferimenti.length > 0 && (
             <section className="card riferimenti">
-              <h3>Riferimenti</h3>
+              <h3>Riferimenti e risorse</h3>
               <ul>
                 {content.riferimenti.map((r) => (
-                  <li key={r.label}>
-                    <strong>{r.label}</strong>
+                  <li key={r.label + (r.url ?? '')}>
+                    {r.url ? (
+                      <a href={r.url} target="_blank" rel="noopener noreferrer">
+                        <strong>{r.label}</strong>
+                      </a>
+                    ) : (
+                      <strong>{r.label}</strong>
+                    )}
                     {r.detail ? <span className="muted"> — {r.detail}</span> : null}
                   </li>
                 ))}
@@ -301,16 +338,39 @@ export function UnitaPage() {
       )}
 
       {tab === 'esercizi' && (
-        <QuizPlayer
-          key={`e-${quizKey}`}
-          title="Esercizi"
-          questions={eserciziQs}
-          onComplete={(score, total) => {
-            recordQuiz(unita.id, score, total, 'esercizi', false)
-            addEserciziDone(unita.id, total)
-            setTab('teoria')
-          }}
-        />
+        <div>
+          <div className="row gap" style={{ marginBottom: '0.75rem', flexWrap: 'wrap' }}>
+            {eserciziResume && (
+              <p className="muted" style={{ margin: 0, flex: 1 }}>
+                Ripresa dalla domanda {(eserciziResume.index ?? 0) + 1}/{eserciziQs.length}.
+              </p>
+            )}
+            <button
+              type="button"
+              className="btn"
+              onClick={() => {
+                if (id) clearEserciziSession(id)
+                setQuizKey((x) => x + 1)
+              }}
+            >
+              Ricomincia esercizi
+            </button>
+          </div>
+          <QuizPlayer
+            key={`e-${id}-${quizKey}`}
+            title="Esercizi"
+            questions={eserciziQs}
+            initialAnswers={eserciziResume?.answers}
+            initialIndex={eserciziResume?.index ?? 0}
+            onProgress={onEserciziProgress}
+            onComplete={(score, total) => {
+              if (id) clearEserciziSession(id)
+              recordQuiz(unita.id, score, total, 'esercizi', false)
+              addEserciziDone(unita.id, total)
+              setTab('teoria')
+            }}
+          />
+        </div>
       )}
 
       {tab === 'verifica' && (

@@ -1,13 +1,13 @@
 import type { SemaforoColore } from '../types'
 
 /**
- * Triage (5Q): 5 verde · 3–4 giallo · 0–2 rosso
+ * Triage (5Q): 4–5 verde · 3 giallo · 0–2 rosso
  * Verifica (8Q): ≥90% verde · ≥55% giallo · resto rosso
  */
 export function scoreToColore(score: number, total = 5): SemaforoColore {
   if (total <= 0) return 'grigio'
   if (total === 5) {
-    if (score >= 5) return 'verde'
+    if (score >= 4) return 'verde'
     if (score >= 3) return 'giallo'
     return 'rosso'
   }

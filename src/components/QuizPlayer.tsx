@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Question } from '../types'
 import { isAnswerCorrect } from '../data/quizHelpers'
+import { scoreToColore } from '../lib/semaforo'
 
 interface Props {
   questions: Question[]
@@ -8,6 +9,10 @@ interface Props {
   onComplete: (score: number, total: number) => void
   showExplanations?: boolean
   completeLabel?: string
+  initialAnswers?: (string | number | null)[]
+  initialIndex?: number
+  /** Chiamato a ogni cambio di risposte/indice (per persistenza esercizi) */
+  onProgress?: (answers: (string | number | null)[], index: number) => void
 }
 
 export function QuizPlayer({
@@ -16,13 +21,32 @@ export function QuizPlayer({
   onComplete,
   showExplanations = true,
   completeLabel = 'Salva e continua',
+  initialAnswers,
+  initialIndex = 0,
+  onProgress,
 }: Props) {
-  const [index, setIndex] = useState(0)
-  const [answers, setAnswers] = useState<(string | number | null)[]>(
-    () => questions.map(() => null),
+  const [index, setIndex] = useState(() =>
+    Math.min(Math.max(0, initialIndex), Math.max(0, questions.length - 1)),
   )
+  const [answers, setAnswers] = useState<(string | number | null)[]>(() => {
+    if (initialAnswers && initialAnswers.length === questions.length) return [...initialAnswers]
+    return questions.map(() => null)
+  })
   const [checked, setChecked] = useState(false)
   const [finished, setFinished] = useState(false)
+  const onProgressRef = useRef(onProgress)
+  onProgressRef.current = onProgress
+  const skipFirstProgress = useRef(
+    Boolean(initialAnswers && initialAnswers.length === questions.length),
+  )
+
+  useEffect(() => {
+    if (skipFirstProgress.current) {
+      skipFirstProgress.current = false
+      return
+    }
+    onProgressRef.current?.(answers, index)
+  }, [answers, index])
 
   const q = questions[index]
   const score = useMemo(() => {
@@ -37,19 +61,22 @@ export function QuizPlayer({
   if (!q) return null
 
   if (finished) {
+    const colore = scoreToColore(score, questions.length)
+    const msg =
+      colore === 'verde'
+        ? score === questions.length
+          ? 'Perfetto — codice verde.'
+          : 'Ottimo — codice verde.'
+        : colore === 'giallo'
+          ? 'Quasi — codice giallo.'
+          : 'Da riprendere — codice rosso.'
     return (
       <div className="card result-card">
         <h2>Risultato</h2>
         <p className="score-big">
           {score}/{questions.length}
         </p>
-        <p className="muted">
-          {score === questions.length
-            ? 'Perfetto — codice verde.'
-            : score / questions.length >= 0.55
-              ? 'Quasi — codice giallo.'
-              : 'Da riprendere — codice rosso.'}
-        </p>
+        <p className="muted">{msg}</p>
         <button type="button" className="btn primary" onClick={() => onComplete(score, questions.length)}>
           {completeLabel}
         </button>
@@ -60,6 +87,12 @@ export function QuizPlayer({
   const current = answers[index]
   const isCorrect =
     checked && current !== null ? isAnswerCorrect(q, current) : null
+
+  function setAnswerAt(value: string | number | null) {
+    const next = [...answers]
+    next[index] = value
+    setAnswers(next)
+  }
 
   return (
     <div className="card quiz-card">
@@ -79,11 +112,7 @@ export function QuizPlayer({
                 name={`q-${q.id}`}
                 disabled={checked}
                 checked={current === i}
-                onChange={() => {
-                  const next = [...answers]
-                  next[index] = i
-                  setAnswers(next)
-                }}
+                onChange={() => setAnswerAt(i)}
               />
               {opt}
             </label>
@@ -96,11 +125,7 @@ export function QuizPlayer({
           disabled={checked}
           value={current === null ? '' : String(current)}
           placeholder="Scrivi la risposta…"
-          onChange={(e) => {
-            const next = [...answers]
-            next[index] = e.target.value
-            setAnswers(next)
-          }}
+          onChange={(e) => setAnswerAt(e.target.value)}
         />
       )}
       {checked && showExplanations && (

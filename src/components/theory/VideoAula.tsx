@@ -8,8 +8,8 @@ export function VideoAula({ videos }: { videos: TheoryVideo[] }) {
       <h3>Video aula</h3>
       <p className="muted small">Lezioni esterne incorporate — aprono anche su YouTube se preferisci.</p>
       <div className="video-grid">
-        {videos.map((v) => (
-          <article key={v.youtubeId} className="video-card">
+        {videos.map((v, i) => (
+          <article key={`${v.youtubeId}-${i}`} className="video-card">
             <div className="video-embed">
               <iframe
                 src={`https://www.youtube-nocookie.com/embed/${v.youtubeId}`}

@@ -5,12 +5,17 @@ import { buildBiologia } from './biologia'
 import { buildChimica } from './chimica'
 import { buildFisica } from './fisica'
 import { enrichContent } from './enrich'
+import { expandAllParents } from './splitArgomenti'
 import { pickExamPaper } from '../quizHelpers'
 
-const ALL: UnitaContent[] = [
+const PARENTS: UnitaContent[] = [
   ...buildBiologia(),
   ...buildChimica(),
   ...buildFisica(),
+]
+
+const ALL: UnitaContent[] = [
+  ...expandAllParents(PARENTS),
   ...buildApprofondimenti(),
 ].map(enrichContent)
 

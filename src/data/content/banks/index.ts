@@ -1,9 +1,6 @@
-/**
- * Banche quiz espanse (originali) per unità ufficiali.
- * Obiettivo: ≥40 esercizi + ≥10 verifica dedicata per unità.
- */
 import type { Question } from '../../../types'
 import { fill, mc, resetQCounter } from '../../quizHelpers'
+import { getUnita } from '../../unita'
 import { BIO_BANKS, type Raw } from './bioBanks'
 import { CHIM_BANKS } from './chimBanks'
 import { FIS_BANKS } from './fisBanks'
@@ -56,16 +53,19 @@ const ALL: Record<string, { ex: Raw[]; vf: Raw[] }> = {
   ...FIS_BANKS,
 }
 
+/** Banche indexed per unità MUR; gli argomenti le partizionano in splitArgomenti */
 export function getBankEsercizi(unitaId: string): Question[] {
-  const b = ALL[unitaId]
+  const parent = getUnita(unitaId)?.parentUnitaId ?? unitaId
+  const b = ALL[parent] ?? ALL[unitaId]
   if (!b) return []
-  return toQs(unitaId, pad(b.ex, 40), 'ex')
+  return toQs(parent, pad(b.ex, 40), 'ex')
 }
 
 export function getBankVerifica(unitaId: string): Question[] {
-  const b = ALL[unitaId]
+  const parent = getUnita(unitaId)?.parentUnitaId ?? unitaId
+  const b = ALL[parent] ?? ALL[unitaId]
   if (!b) return []
-  return toQs(unitaId, pad(b.vf, 12), 'vf')
+  return toQs(parent, pad(b.vf, 12), 'vf')
 }
 
 export function mergeQuizBanks<
@@ -76,7 +76,7 @@ export function mergeQuizBanks<
     verifica?: Question[]
   },
 >(c: T): T & { esercizi: Question[]; verifica: Question[] } {
-  if (c.unitaId.startsWith('extra-')) {
+  if (c.unitaId.startsWith('extra-') || getUnita(c.unitaId)?.parentUnitaId) {
     return { ...c, verifica: c.verifica ?? [] }
   }
   const bankEx = getBankEsercizi(c.unitaId)
@@ -92,7 +92,6 @@ export function mergeQuizBanks<
     return true
   }
 
-  // Prefer fill until ~10, then fill with multipla
   const bankFill = bankEx.filter((q) => q.type === 'completamento')
   const bankMc = bankEx.filter((q) => q.type === 'multipla')
   for (const q of bankFill) {
