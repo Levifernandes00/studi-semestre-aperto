@@ -16,6 +16,58 @@ function emptyUnita(): UnitaProgress {
   }
 }
 
+/** Cartella di studio (argomento/extra), non unità MUR genitore */
+export function isStudyUnitaId(id: string): boolean {
+  if (id === 'sim') return true
+  return UNITA.some((u) => u.id === id)
+}
+
+/** Kind legacy → esercizi/verifica/simulazione usati in coda */
+export function normalizePlanKind(kind: string): 'esercizi' | 'verifica' | 'simulazione' | null {
+  if (kind === 'simulazione2' || kind === 'simulazione') return 'simulazione'
+  if (kind === 'teoria' || kind === 'diagnostico' || kind === 'ripasso') return 'esercizi'
+  if (kind === 'esercizi' || kind === 'verifica') return kind
+  return null
+}
+
+/**
+ * Espande chiavi piano su id MUR (bio-1, …) verso i figli-argomento.
+ * Droppa chiavi che non sono cartelle di studio.
+ */
+export function expandForcedPlanItems(keys: string[]): string[] {
+  const out: string[] = []
+  const seen = new Set<string>()
+
+  const push = (tk: string) => {
+    if (seen.has(tk)) return
+    seen.add(tk)
+    out.push(tk)
+  }
+
+  for (const key of keys) {
+    const parsed = parseTaskKey(key)
+    if (!parsed) continue
+    const kind = normalizePlanKind(parsed.kind)
+    if (!kind) continue
+
+    const kids = getArgomentiOf(parsed.unitaId)
+    if (kids.length > 0) {
+      for (const kid of kids) push(taskKey(kid.id, kind))
+      continue
+    }
+
+    if (!isStudyUnitaId(parsed.unitaId)) continue
+
+    if (parsed.unitaId === 'sim') {
+      push(parsed.kind === 'simulazione2' ? taskKey('sim', 'simulazione2') : taskKey('sim', 'simulazione'))
+      continue
+    }
+
+    push(taskKey(parsed.unitaId, kind))
+  }
+  return out
+}
+
 export function defaultProgress(): AppProgress {
   const unita: Record<string, UnitaProgress> = {}
   for (const u of UNITA) unita[u.id] = emptyUnita()
@@ -57,15 +109,25 @@ export function loadProgress(): AppProgress {
       }
     }
 
-    return {
+    const forcedPlanItems = expandForcedPlanItems(parsed.forcedPlanItems ?? [])
+    const merged: AppProgress = {
       ...base,
       ...parsed,
       unita: mergedUnita,
       planHoursActual: { ...base.planHoursActual, ...parsed.planHoursActual },
       planCompletedAt: { ...base.planCompletedAt, ...parsed.planCompletedAt },
-      forcedPlanItems: parsed.forcedPlanItems ?? [],
+      forcedPlanItems,
       weeklyHoursTarget: parsed.weeklyHoursTarget ?? DEFAULT_WEEKLY_HOURS,
     }
+    // Persisti se c’erano chiavi MUR legacy da espandere/rimuovere
+    const rawForced = parsed.forcedPlanItems ?? []
+    if (
+      rawForced.length !== forcedPlanItems.length ||
+      rawForced.some((k, i) => k !== forcedPlanItems[i])
+    ) {
+      saveProgress(merged)
+    }
+    return merged
   } catch {
     return defaultProgress()
   }
@@ -89,7 +151,7 @@ export function importProgress(json: string): AppProgress {
     unita: { ...base.unita, ...parsed.unita },
     planHoursActual: { ...base.planHoursActual, ...parsed.planHoursActual },
     planCompletedAt: { ...base.planCompletedAt, ...parsed.planCompletedAt },
-    forcedPlanItems: parsed.forcedPlanItems ?? [],
+    forcedPlanItems: expandForcedPlanItems(parsed.forcedPlanItems ?? []),
     weeklyHoursTarget: parsed.weeklyHoursTarget ?? DEFAULT_WEEKLY_HOURS,
   }
   saveProgress(merged)

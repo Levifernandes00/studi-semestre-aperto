@@ -1,8 +1,10 @@
-import { getUnita, UNITA_APPROFONDIMENTI, UNITA_UFFICIALI } from '../data/unita'
+import { getArgomentiOf, getUnita, UNITA_APPROFONDIMENTI, UNITA_UFFICIALI } from '../data/unita'
 import { colorePriority } from './semaforo'
 import {
   DEFAULT_WEEKLY_HOURS,
   isPlanTaskDone,
+  isStudyUnitaId,
+  normalizePlanKind,
   parseTaskKey,
   taskKey,
 } from './progress'
@@ -117,23 +119,40 @@ function activeCompletedKeys(progress: AppProgress, _now: Date): string[] {
 
 function buildForcedTasks(progress: AppProgress, done: string[], existing: Set<string>): Task[] {
   const out: Task[] = []
-  for (const key of progress.forcedPlanItems ?? []) {
-    if (isPlanTaskDone(done, key)) continue
-    if (existing.has(key)) continue
-    const parsed = parseTaskKey(key)
-    if (!parsed) continue
-    // Solo esercizi / prove (verifica + simulazioni); mappa teoria/diagnostico/ripasso → esercizi
-    let kind = parsed.kind
-    if (kind === 'simulazione2') kind = 'simulazione'
-    if (kind === 'teoria' || kind === 'diagnostico' || kind === 'ripasso') kind = 'esercizi'
-    if (!['esercizi', 'verifica', 'simulazione'].includes(kind)) continue
+  const seen = new Set<string>()
+
+  const pushTask = (unitaId: string, kind: PlanSession['kind'], labelKind: string, key: string) => {
+    if (isPlanTaskDone(done, key)) return
+    if (existing.has(key) || seen.has(key)) return
+    seen.add(key)
     out.push({
-      unitaId: parsed.unitaId,
-      kind: kind as PlanSession['kind'],
-      label: labelForTask(parsed.unitaId, kind === 'simulazione' ? parsed.kind : kind),
-      hours: Math.round(kindHours(parsed.unitaId, kind) * 10) / 10,
+      unitaId,
+      kind,
+      label: labelForTask(unitaId, labelKind),
+      hours: Math.round(kindHours(unitaId, kind) * 10) / 10,
       taskKey: key,
     })
+  }
+
+  for (const key of progress.forcedPlanItems ?? []) {
+    const parsed = parseTaskKey(key)
+    if (!parsed) continue
+    const kind = normalizePlanKind(parsed.kind)
+    if (!kind) continue
+
+    const kids = getArgomentiOf(parsed.unitaId)
+    if (kids.length > 0) {
+      for (const kid of kids) {
+        pushTask(kid.id, kind, kind, taskKey(kid.id, kind))
+      }
+      continue
+    }
+
+    if (!isStudyUnitaId(parsed.unitaId)) continue
+
+    const labelKind = parsed.unitaId === 'sim' ? parsed.kind : kind
+    const sessionKind = kind as PlanSession['kind']
+    pushTask(parsed.unitaId, sessionKind, labelKind, key)
   }
   return out
 }
@@ -251,6 +270,7 @@ function buildDoneSessionsForWeek(
     if (day < weekStart || day > weekEnd) continue
     const parsed = parseTaskKey(key)
     if (!parsed) continue
+    if (!isStudyUnitaId(parsed.unitaId)) continue
     const kind = (
       parsed.kind === 'simulazione2' ? 'simulazione' : parsed.kind
     ) as PlanSession['kind']
@@ -286,6 +306,7 @@ export function listRecentCompleted(
     seen.add(key)
     const parsed = parseTaskKey(key)
     if (!parsed) continue
+    if (!isStudyUnitaId(parsed.unitaId)) continue
     rows.push({
       taskKey: key,
       label: labelForTask(parsed.unitaId, parsed.kind),

@@ -22,6 +22,12 @@ function sameIds(a: string[], b: string[]) {
   return a.length === b.length && a.every((id, i) => id === b[i])
 }
 
+function truncateTheory(body: string, max = 280): string {
+  const t = body.replace(/\s+/g, ' ').trim()
+  if (t.length <= max) return t
+  return `${t.slice(0, max).replace(/\s+\S*$/, '')}…`
+}
+
 export function UnitaPage() {
   const { id } = useParams()
   const [searchParams] = useSearchParams()
@@ -88,6 +94,14 @@ export function UnitaPage() {
     [id, eserciziIds, saveEserciziSession],
   )
 
+  const theoryHints = useMemo(() => {
+    if (!content?.theory?.length) return []
+    return content.theory
+      .slice(0, 2)
+      .map((t) => truncateTheory(t.body))
+      .filter(Boolean)
+  }, [content])
+
   if (!unita || !content) {
     return (
       <div className="page">
@@ -130,6 +144,7 @@ export function UnitaPage() {
           key={`triage-${id}-${quizKey}`}
           title="Triage"
           questions={diagnosticoQs}
+          theoryHints={theoryHints}
           completeLabel="Salva e apri lo studio"
           onComplete={(score, total) => {
             recordQuiz(unita.id, score, total, 'diagnostico', true)
@@ -372,6 +387,7 @@ export function UnitaPage() {
             key={`e-${id}-${quizKey}`}
             title="Esercizi"
             questions={eserciziQs}
+            theoryHints={theoryHints}
             initialAnswers={eserciziResume?.answers}
             initialIndex={eserciziResume?.index ?? 0}
             onProgress={onEserciziProgress}
@@ -395,6 +411,7 @@ export function UnitaPage() {
             key={`v-${quizKey}`}
             title="Verifica"
             questions={verificaQs}
+            theoryHints={theoryHints}
             onComplete={(score, total) => {
               recordQuiz(unita.id, score, total, 'verifica', true)
               setTab('teoria')

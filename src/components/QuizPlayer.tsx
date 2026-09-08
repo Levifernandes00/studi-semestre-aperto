@@ -11,6 +11,8 @@ interface Props {
   completeLabel?: string
   initialAnswers?: (string | number | null)[]
   initialIndex?: number
+  /** Estratti di teoria della cartella, mostrati dopo un errore */
+  theoryHints?: string[]
   /** Chiamato a ogni cambio di risposte/indice (per persistenza esercizi) */
   onProgress?: (answers: (string | number | null)[], index: number) => void
 }
@@ -23,6 +25,7 @@ export function QuizPlayer({
   completeLabel = 'Salva e continua',
   initialAnswers,
   initialIndex = 0,
+  theoryHints,
   onProgress,
 }: Props) {
   const [index, setIndex] = useState(() =>
@@ -87,11 +90,29 @@ export function QuizPlayer({
   const current = answers[index]
   const isCorrect =
     checked && current !== null ? isAnswerCorrect(q, current) : null
+  const correctOptionText =
+    q.type === 'multipla' && q.options && typeof q.answer === 'number'
+      ? q.options[q.answer]
+      : null
+  const chosenOptionText =
+    q.type === 'multipla' && q.options && typeof current === 'number' ? q.options[current] : null
+  const deepenHints =
+    checked && isCorrect === false && theoryHints && theoryHints.length > 0 ? theoryHints : null
 
   function setAnswerAt(value: string | number | null) {
     const next = [...answers]
     next[index] = value
     setAnswers(next)
+  }
+
+  function optionClass(i: number): string {
+    const classes = ['option']
+    if (current === i) classes.push('selected')
+    if (checked && showExplanations) {
+      if (typeof q.answer === 'number' && i === q.answer) classes.push('right')
+      else if (current === i && isCorrect === false) classes.push('wrong')
+    }
+    return classes.join(' ')
   }
 
   return (
@@ -106,7 +127,7 @@ export function QuizPlayer({
       {q.type === 'multipla' && q.options && (
         <div className="options">
           {q.options.map((opt, i) => (
-            <label key={i} className={`option ${current === i ? 'selected' : ''}`}>
+            <label key={i} className={optionClass(i)}>
               <input
                 type="radio"
                 name={`q-${q.id}`}
@@ -121,7 +142,7 @@ export function QuizPlayer({
       )}
       {q.type === 'completamento' && (
         <input
-          className="text-input"
+          className={`text-input${checked && isCorrect === false ? ' wrong' : ''}${checked && isCorrect ? ' right' : ''}`}
           disabled={checked}
           value={current === null ? '' : String(current)}
           placeholder="Scrivi la risposta…"
@@ -130,9 +151,29 @@ export function QuizPlayer({
       )}
       {checked && showExplanations && (
         <div className={`explain ${isCorrect ? 'ok' : 'ko'}`}>
-          <strong>{isCorrect ? 'Corretto' : 'Non corretto'}.</strong> {q.explanation}
+          <strong>{isCorrect ? 'Corretto' : 'Non corretto'}.</strong>
+          {!isCorrect && q.type === 'multipla' && chosenOptionText != null && (
+            <p className="explain-answer">Hai scelto: {chosenOptionText}</p>
+          )}
+          {!isCorrect && q.type === 'completamento' && current != null && current !== '' && (
+            <p className="explain-answer">Hai scritto: {String(current)}</p>
+          )}
+          {!isCorrect && correctOptionText != null && (
+            <p className="explain-answer">Risposta corretta: {correctOptionText}</p>
+          )}
           {!isCorrect && q.type === 'completamento' && (
-            <span> Risposta attesa: {String(q.answer)}</span>
+            <p className="explain-answer">Risposta corretta: {String(q.answer)}</p>
+          )}
+          <p className="explain-body">{q.explanation}</p>
+          {deepenHints && (
+            <div className="explain-deepen">
+              <p className="explain-deepen-title">Dal ripasso di questa cartella</p>
+              {deepenHints.map((hint, i) => (
+                <p key={i} className="explain-deepen-body">
+                  {hint}
+                </p>
+              ))}
+            </div>
           )}
         </div>
       )}
